@@ -25,7 +25,7 @@ endpoint = "/predict/animals" if "животных" in model_choice else "/predi
 # 🐾 РЕЖИМ: ЖИВОТНЫЕ (загрузка файла)
 # ------------------------------------------
 if "животных" in model_choice:
-    st.info("📸 Загрузите фотографию животного")
+    st.info("📸 Загрузите фотографию животного (кошка, лягушка, олень)")
     uploaded_file = st.file_uploader("Выберите изображение", type=["png", "jpg", "jpeg"])
     
     if uploaded_file:
