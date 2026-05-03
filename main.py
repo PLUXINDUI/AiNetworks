@@ -22,8 +22,8 @@ app.add_middleware(
 )
 
 # Пути к моделям
-DIGIT_MODEL_PATH = "mnist_model.keras"
-ANIMAL_MODEL_PATH = "best_model_final.keras"
+DIGIT_MODEL_PATH = "models/mnist_cnn.keras"
+ANIMAL_MODEL_PATH = "models/best_model_final.keras"
 
 # Загрузка моделей
 digit_model = tf.keras.models.load_model(DIGIT_MODEL_PATH)
@@ -31,7 +31,7 @@ animal_model = tf.keras.models.load_model(ANIMAL_MODEL_PATH)
 
 # Классы
 DIGIT_CLASSES = [str(i) for i in range(10)]
-ANIMAL_CLASSES = ["cat", "frog", "deer"]
+ANIMAL_CLASSES = ["cat", "dog", "cheetah"]
 
 # Размеры входов
 DIGIT_IMAGE_SIZE = (28, 28)
