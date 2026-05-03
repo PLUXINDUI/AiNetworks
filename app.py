@@ -3,108 +3,123 @@ import requests
 from PIL import Image
 import io
 import numpy as np
+from streamlit_drawable_canvas import st_canvas
 
 st.set_page_config(page_title="Multi-Model Classifier", layout="wide")
-st.title(" Мульти-модельный классификатор")
+st.title("🤖 Мульти-модельный классификатор")
 
 # Выбор модели
 model_choice = st.radio(
-    "Выберите модель:",
-    ["🐾 Классификация животных", "🔢 Распознавание цифр (MNIST)"],
+    "Выберите задачу:",
+    ["🐾 Классификация животных", " Распознавание цифр (MNIST)"],
     horizontal=True
 )
 
 # URL API
-API_URL = st.text_input(
-    "URL API:",
-    value="http://localhost:8000"
-)
+API_URL = st.text_input("URL вашего API (Render):", value="http://localhost:8000")
 
 # Определяем эндпоинт
+endpoint = "/predict/animals" if "животных" in model_choice else "/predict/mnist"
+
+# ------------------------------------------
+# 🐾 РЕЖИМ: ЖИВОТНЫЕ (загрузка файла)
+# ------------------------------------------
 if "животных" in model_choice:
-    endpoint = "/predict/animals"
-    st.info("📸 Загрузите изображение животного (кошка, собака и т.д.)")
+    st.info("📸 Загрузите фотографию животного")
+    uploaded_file = st.file_uploader("Выберите изображение", type=["png", "jpg", "jpeg"])
+    
+    if uploaded_file:
+        col1, col2 = st.columns(2)
+        with col1:
+            original = Image.open(uploaded_file)
+            st.image(original, caption="Оригинал", use_container_width=True)
+            
+        if st.button("🔮 Классифицировать животное", type="primary"):
+            with st.spinner("Анализирую..."):
+                try:
+                    img_byte_arr = io.BytesIO()
+                    original.save(img_byte_arr, format='PNG')
+                    files = {"file": ("animal.png", img_byte_arr.getvalue(), "image/png")}
+                    response = requests.post(f"{API_URL}{endpoint}", files=files, timeout=30)
+                    response.raise_for_status()
+                    result = response.json()
+                    
+                    if result.get("status") == "success":
+                        with col2:
+                            st.success(f"✅ Это: **{result['predicted_class']}**")
+                            st.metric("Уверенность", f"{result['confidence']:.2%}")
+                            st.bar_chart({"Вероятность": result['all_probabilities']})
+                except Exception as e:
+                    st.error(f"❌ Ошибка: {e}")
+
+# ------------------------------------------
+# 🔢 РЕЖИМ: MNIST (холст для рисования)
+# ------------------------------------------
 else:
-    endpoint = "/predict/mnist"
-    st.info("✏️ Загрузите изображение цифры (0-9) или нарисуйте её")
-
-# Загрузка файла
-uploaded_file = st.file_uploader(
-    "Выберите изображение",
-    type=["png", "jpg", "jpeg"]
-)
-
-if uploaded_file:
+    st.info("️ Нарисуйте цифру от 0 до 9 на чёрном холсте белой кистью")
+    
+    # Настройки кисти
     col1, col2 = st.columns(2)
-    
     with col1:
-        original = Image.open(uploaded_file)
-        st.image(original, caption="Оригинал", use_container_width=True)
+        stroke_width = st.slider("Толщина кисти", 5, 30, 15)
+    with col2:
+        stroke_color = st.color_picker("Цвет кисти", "#FFFFFF")
+        bg_color = st.color_picker("Цвет фона", "#000000")
+        
+    # Холст
+    canvas_result = st_canvas(
+        fill_color="rgba(0,0,0,0)",
+        stroke_width=stroke_width,
+        stroke_color=stroke_color,
+        background_color=bg_color,
+        height=280,
+        width=280,
+        drawing_mode="freedraw",
+        key="mnist_canvas",
+        update_streamlit=True,
+    )
     
-    # Кнопка классификации
-    if st.button("🔮 Классифицировать", type="primary"):
-        with st.spinner("Обработка..."):
-            try:
-                # Подготовка файла
-                img_byte_arr = io.BytesIO()
-                original.save(img_byte_arr, format='PNG')
-                img_byte_arr = img_byte_arr.getvalue()
-                
-                # Отправка запроса
-                files = {"file": ("image.png", img_byte_arr, "image/png")}
-                response = requests.post(
-                    f"{API_URL}{endpoint}",
-                    files=files,
-                    timeout=30
-                )
-                response.raise_for_status()
-                result = response.json()
-                
-                if result.get("status") == "success":
-                    with col2:
-                        st.success(f"✅ Предсказание: **{result['predicted_class']}**")
-                        st.metric("Уверенность", f"{result['confidence']:.2%}")
-                    
-                    # График вероятностей
-                    st.subheader("📊 Вероятности по классам")
-                    probs = result['all_probabilities']
-                    
-                    if "animals" in result.get("model", ""):
-                        classes = result.get("classes", [f"Class {i}" for i in range(len(probs))])
-                    else:
-                        classes = list(range(len(probs)))
-                    
-                    probs_df = st.dataframe(
-                        {"Класс": classes, "Вероятность": [f"{p:.2%}" for p in probs]},
-                        hide_index=True,
-                        use_container_width=True
-                    )
-                    
-                    # Бар-чарт
-                    chart_data = {"Вероятность": probs}
-                    st.bar_chart(chart_data)
-                    
-                else:
-                    st.error("❌ Ошибка в ответе API")
-                    
-            except requests.exceptions.RequestException as e:
-                st.error(f"❌ Ошибка соединения: {e}")
-            except Exception as e:
-                st.error(f"❌ Ошибка: {e}")
+    if canvas_result.image_data is not None:
+        img = Image.fromarray(canvas_result.image_data.astype('uint8'), 'RGBA')
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.image(img, caption="Ваш рисунок", use_container_width=True)
+            
+        with col2:
+            if st.button("🔮 Распознать цифру", type="primary"):
+                with st.spinner("Распознаю..."):
+                    try:
+                        # Приводим к формату MNIST (28x28, grayscale)
+                        if img.mode != 'L':
+                            img = img.convert('L')
+                        img = img.resize((28, 28), Image.LANCZOS)
+                        
+                        img_byte_arr = io.BytesIO()
+                        img.save(img_byte_arr, format='PNG')
+                        
+                        files = {"file": ("digit.png", img_byte_arr.getvalue(), "image/png")}
+                        response = requests.post(f"{API_URL}{endpoint}", files=files, timeout=30)
+                        response.raise_for_status()
+                        result = response.json()
+                        
+                        if result.get("status") == "success":
+                            st.success(f"✅ Цифра: **{result['predicted_class']}**")
+                            st.metric("Уверенность", f"{result['confidence']:.2%}")
+                            st.bar_chart({"Вероятность": result['all_probabilities']})
+                    except Exception as e:
+                        st.error(f"❌ Ошибка: {e}")
 
-# Боковая панель с информацией
+# Боковая панель
 with st.sidebar:
-    st.header("ℹ️ Информация")
-    st.write(f"**API URL:** {API_URL}")
-    st.write(f"**Модель:** {endpoint}")
-    
+    st.header("ℹ️ Статус")
     if st.button("📡 Проверить API"):
         try:
-            response = requests.get(f"{API_URL}/", timeout=5)
-            if response.status_code == 200:
-                st.success("✅ API доступен!")
-                st.json(response.json())
+            resp = requests.get(f"{API_URL}/", timeout=5)
+            if resp.status_code == 200:
+                st.success("✅ API работает!")
+                st.json(resp.json())
             else:
-                st.error(f"❌ Статус: {response.status_code}")
+                st.error(f" Код ответа: {resp.status_code}")
         except Exception as e:
-            st.error(f"❌ Ошибка: {e}")
+            st.error(f" Не удалось подключиться: {e}")
