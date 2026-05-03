@@ -28,17 +28,14 @@ app.add_middleware(
 print("🔄 Загрузка моделей...")
 
 # Модель 1: Классификация животных (Keras)
-ANIMAL_MODEL_PATH = "classification.keras"
+ANIMAL_MODEL_PATH = "animal_model_savedmodel"  # Папка, не файл!
 
 try:
-    print(f"🔄 Загрузка модели животных из {ANIMAL_MODEL_PATH}...")
+    print(f"🔄 Загрузка модели из {ANIMAL_MODEL_PATH}...")
     animal_model = tf.keras.models.load_model(ANIMAL_MODEL_PATH, compile=False)
-    print(f"✅ Модель животных успешно загружена!")
-except FileNotFoundError:
-    print(f"❌ ОШИБКА: Файл {ANIMAL_MODEL_PATH} не найден!")
-    raise
+    print("✅ Модель животных загружена!")
 except Exception as e:
-    print(f"❌ ОШИБКА при загрузке модели: {type(e).__name__}: {e}")
+    print(f"❌ Ошибка: {e}")
     raise
 
 # Модель 2: MNIST цифры (TFLite)
