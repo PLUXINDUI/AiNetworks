@@ -5,6 +5,9 @@ import tensorflow as tf
 import numpy as np
 from PIL import Image
 import io
+import os
+
+os.environ['KERAS_BACKEND'] = 'tensorflow'
 
 app = FastAPI(title="Multi-Model Classification API")
 
@@ -22,7 +25,7 @@ print("🔄 Загрузка моделей...")
 
 # Модель 1: Классификация животных (Keras)
 ANIMAL_MODEL_PATH = "classification.keras"
-animal_model = tf.keras.models.load_model(ANIMAL_MODEL_PATH)
+animal_model = tf.keras.models.load_model(ANIMAL_MODEL_PATH, compile=False)
 print(f"✓ Модель животных загружена: {ANIMAL_MODEL_PATH}")
 
 # Модель 2: MNIST цифры (TFLite)
