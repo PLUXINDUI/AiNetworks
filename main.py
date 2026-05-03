@@ -1,18 +1,18 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-import tensorflow as tf
+import io
 import numpy as np
 from PIL import Image
-import io
-import os
 
-# Для Keras 3
-os.environ['KERAS_BACKEND'] = 'tensorflow'
+import tensorflow as tf
+from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="Multi-Model Classification API")
 
-# CORS
+app = FastAPI(
+    title="Digit and Animal Classification API",
+    version="1.0.0",
+    description="API для классификации цифр MNIST и изображений животных"
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,143 +21,129 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ============================================
-# ЗАГРУЗКА МОДЕЛЕЙ (с обработкой ошибок)
-# ============================================
+# Пути к моделям
+DIGIT_MODEL_PATH = "mnist_model.tflite"
+ANIMAL_MODEL_PATH = "classification.keras"
 
-print("🔄 Загрузка моделей...")
+# Загрузка моделей
+digit_model = tf.keras.models.load_model(DIGIT_MODEL_PATH)
+animal_model = tf.keras.models.load_model(ANIMAL_MODEL_PATH)
 
-# Модель 1: Классификация животных (Keras)
-ANIMAL_MODEL_PATH = "animal_model_savedmodel"  # Папка, не файл!
+# Классы
+DIGIT_CLASSES = [str(i) for i in range(10)]
+ANIMAL_CLASSES = ["cat", "dog", "cheetah"]
 
-try:
-    print(f"🔄 Загрузка модели из {ANIMAL_MODEL_PATH}...")
-    animal_model = tf.keras.models.load_model(ANIMAL_MODEL_PATH, compile=False)
-    print("✅ Модель животных загружена!")
-except Exception as e:
-    print(f"❌ Ошибка: {e}")
-    raise
+# Размеры входов
+DIGIT_IMAGE_SIZE = (28, 28)
+ANIMAL_IMAGE_SIZE = (224, 224)   # если у вас модель обучалась на другом размере, замените здесь
 
-# Модель 2: MNIST цифры (TFLite)
-MNIST_MODEL_PATH = "mnist_model.tflite"
 
-try:
-    print(f"🔄 Загрузка модели MNIST из {MNIST_MODEL_PATH}...")
-    mnist_interpreter = tf.lite.Interpreter(model_path=MNIST_MODEL_PATH)
-    mnist_interpreter.allocate_tensors()
-    mnist_input_details = mnist_interpreter.get_input_details()
-    mnist_output_details = mnist_interpreter.get_output_details()
-    print(f"✅ Модель MNIST успешно загружена!")
-except FileNotFoundError:
-    print(f"❌ ОШИБКА: Файл {MNIST_MODEL_PATH} не найден!")
-    raise
-except Exception as e:
-    print(f"❌ ОШИБКА при загрузке MNIST модели: {e}")
-    raise
+def preprocess_digit_image(image: Image.Image) -> np.ndarray:
+    """
+    Предобработка изображения цифры для модели MNIST.
+    """
+    image = image.convert("L")
+    image = image.resize(DIGIT_IMAGE_SIZE)
 
-print("🎉 Все модели загружены успешно!")
+    img_array = np.array(image).astype("float32") / 255.0
 
-# ============================================
-# ФУНКЦИИ ПРЕДОБРАБОТКИ
-# ============================================
+    # Для MNIST часто лучше белая цифра на черном фоне
+    if img_array.mean() > 0.5:
+        img_array = 1.0 - img_array
 
-def preprocess_animal_image(image: Image.Image):
-    """Предобработка для модели животных"""
-    if image.mode != 'RGB':
-        image = image.convert('RGB')
-    
-    img_size = 224  # Измени под размер своей модели!
-    image = image.resize((img_size, img_size))
-    img_array = np.array(image) / 255.0
-    img_array = np.expand_dims(img_array, 0)
-    
+    img_array = np.expand_dims(img_array, axis=-1)   # (28, 28, 1)
+    img_array = np.expand_dims(img_array, axis=0)    # (1, 28, 28, 1)
+
     return img_array
 
-def preprocess_mnist_image(image: Image.Image):
-    """Предобработка для MNIST модели"""
-    if image.mode != 'L':
-        image = image.convert('L')
-    
-    image = image.resize((28, 28), Image.LANCZOS)
-    img_array = np.array(image)
-    img_array = img_array.astype('float32') / 255.0
-    img_array = np.expand_dims(img_array, -1)
-    img_array = np.expand_dims(img_array, 0)
-    
+
+def preprocess_animal_image(image: Image.Image) -> np.ndarray:
+    """
+    Предобработка изображения животного.
+    """
+    image = image.convert("RGB")
+    image = image.resize(ANIMAL_IMAGE_SIZE)
+
+    img_array = np.array(image).astype("float32") / 255.0
+    img_array = np.expand_dims(img_array, axis=0)    # (1, H, W, 3)
+
     return img_array
 
-# ============================================
-# ЭНДПОИНТЫ API
-# ============================================
 
-@app.get("/")
-async def root():
-    return {
-        "message": "Multi-Model Classification API",
-        "available_models": ["animals", "mnist"],
-        "endpoints": {
-            "/predict/animals": "Классификация животных",
-            "/predict/mnist": "Классификация цифр MNIST",
-            "/docs": "API документация"
-        }
+def make_prediction(model, image_array: np.ndarray, class_names: list[str]) -> dict:
+    """
+    Возвращает predicted_class, confidence и probabilities.
+    """
+    preds = model.predict(image_array, verbose=0)[0]
+
+    # если вдруг модель вернула logits, преобразуем в вероятности
+    if not np.isclose(np.sum(preds), 1.0, atol=1e-2):
+        preds = tf.nn.softmax(preds).numpy()
+
+    predicted_idx = int(np.argmax(preds))
+    predicted_class = class_names[predicted_idx]
+    confidence = float(preds[predicted_idx])
+
+    probabilities = {
+        class_names[i]: float(preds[i]) for i in range(len(class_names))
     }
 
-@app.post("/predict/animals")
+    return {
+        "predicted_class": predicted_class,
+        "confidence": confidence,
+        "probabilities": probabilities
+    }
+
+
+@app.get("/")
+def root():
+    return {"message": "API is running"}
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
+@app.post("/predict/digit")
+async def predict_digit(file: UploadFile = File(...)):
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Файл должен быть изображением")
+
+    image_bytes = await file.read()
+
+    try:
+        image = Image.open(io.BytesIO(image_bytes))
+    except Exception:
+        raise HTTPException(status_code=400, detail="Не удалось прочитать изображение")
+
+    image_array = preprocess_digit_image(image)
+    result = make_prediction(digit_model, image_array, DIGIT_CLASSES)
+
+    return {
+        "task": "digit",
+        "filename": file.filename,
+        **result
+    }
+
+
+@app.post("/predict/animal")
 async def predict_animal(file: UploadFile = File(...)):
-    """Классификация животных"""
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Файл должен быть изображением")
+
+    image_bytes = await file.read()
+
     try:
-        contents = await file.read()
-        image = Image.open(io.BytesIO(contents))
-        processed_image = preprocess_animal_image(image)
-        predictions = animal_model.predict(processed_image, verbose=0)
-        predicted_class_idx = int(np.argmax(predictions[0]))
-        confidence = float(np.max(predictions[0]))
-        
-        ANIMAL_CLASSES = ["cat", "dog", "bird", "horse"]  # ЗАМЕНИ НА СВОИ!
-        predicted_class = ANIMAL_CLASSES[predicted_class_idx] if predicted_class_idx < len(ANIMAL_CLASSES) else f"class_{predicted_class_idx}"
-        
-        return JSONResponse(content={
-            "model": "animals",
-            "predicted_class": predicted_class,
-            "class_index": predicted_class_idx,
-            "confidence": round(confidence, 4),
-            "all_probabilities": [float(p) for p in predictions[0]],
-            "status": "success"
-        })
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка: {str(e)}")
+        image = Image.open(io.BytesIO(image_bytes))
+    except Exception:
+        raise HTTPException(status_code=400, detail="Не удалось прочитать изображение")
 
-@app.post("/predict/mnist")
-async def predict_mnist(file: UploadFile = File(...)):
-    """Классификация цифр MNIST"""
-    try:
-        contents = await file.read()
-        image = Image.open(io.BytesIO(contents))
-        processed_image = preprocess_mnist_image(image)
-        
-        mnist_interpreter.set_tensor(mnist_input_details[0]['index'], processed_image)
-        mnist_interpreter.invoke()
-        predictions = mnist_interpreter.get_tensor(mnist_output_details[0]['index'])
-        
-        predicted_class = int(np.argmax(predictions[0]))
-        confidence = float(np.max(predictions[0]))
-        
-        return JSONResponse(content={
-            "model": "mnist",
-            "predicted_class": predicted_class,
-            "confidence": round(confidence, 4),
-            "all_probabilities": [float(p) for p in predictions[0]],
-            "status": "success"
-        })
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка: {str(e)}")
+    image_array = preprocess_animal_image(image)
+    result = make_prediction(animal_model, image_array, ANIMAL_CLASSES)
 
-@app.get("/classes/animals")
-async def get_animal_classes():
-    return {"classes": ["cat", "frog", "deer"]}  # ЗАМЕНИ НА СВОИ!
-
-@app.get("/classes/mnist")
-async def get_mnist_classes():
-    return {"classes": list(range(10)), "count": 10}
+    return {
+        "task": "animal",
+        "filename": file.filename,
+        **result
+    }
