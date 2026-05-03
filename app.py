@@ -19,7 +19,7 @@ model_choice = st.radio(
 API_URL = st.text_input("URL вашего API (Render):", value="http://localhost:8000")
 
 # Определяем эндпоинт
-endpoint = "/predict/animals" if "животных" in model_choice else "/predict/mnist"
+endpoint = "/predict/animal" if "животных" in model_choice else "/predict/digit"
 
 # ------------------------------------------
 # 🐾 РЕЖИМ: ЖИВОТНЫЕ (загрузка файла)
