@@ -159,7 +159,7 @@ async def predict_mnist(file: UploadFile = File(...)):
 
 @app.get("/classes/animals")
 async def get_animal_classes():
-    return {"classes": ["cat", "dog", "bird", "horse"]}  # ЗАМЕНИ НА СВОИ!
+    return {"classes": ["cat", "frog", "deer"]}  # ЗАМЕНИ НА СВОИ!
 
 @app.get("/classes/mnist")
 async def get_mnist_classes():
