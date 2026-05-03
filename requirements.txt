@@ -1,8 +1,8 @@
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-tensorflow==2.16.1
-keras==3.0.0
-numpy==1.26.4
-pillow==10.2.0
 python-multipart==0.0.6
 streamlit-drawable-canvas==0.9.3
+fastapi
+uvicorn
+python-multipart
+Pillow
+tensorflow
+numpy
