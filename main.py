@@ -23,7 +23,7 @@ app.add_middleware(
 
 # Пути к моделям
 DIGIT_MODEL_PATH = "mnist_model.keras"
-ANIMAL_MODEL_PATH = "classification.keras"
+ANIMAL_MODEL_PATH = "best_model_final.keras"
 
 # Загрузка моделей
 digit_model = tf.keras.models.load_model(DIGIT_MODEL_PATH)
