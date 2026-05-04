@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 
 API_URL = st.sidebar.text_input(
     "API URL",
-    value="https://classification-api-ipqh.onrender.com/predict",
+    value="https://networksai.onrender.com/predict",
     help="URL вашего FastAPI бэкенда",
 )
 
