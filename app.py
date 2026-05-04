@@ -8,7 +8,7 @@ API_URL = st.sidebar.text_input(
     help="URL вашего FastAPI бэкенда",
 )
 
-st.title("Классификатор изображений: Cats / Dogs / Snakes")
+st.title("Классификатор изображений:  Cat / Frog / Deer")
 st.markdown("Загрузите изображение для классификации.")
 
 uploaded_file = st.file_uploader("Выберите изображение", type=["jpg", "jpeg", "png", "bmp", "webp"])
