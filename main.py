@@ -16,7 +16,7 @@ app.add_middleware(
 
 CLASS_NAMES = ["cat", "frog", "deer"]
 
-model = tf.keras.models.load_model("classification_model.keras")
+model = tf.keras.models.load_model("classification.keras")
 INPUT_SHAPE = model.input_shape[1:3]
 
 
