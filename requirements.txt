@@ -1,9 +1,0 @@
-python-multipart==0.0.6
-streamlit-drawable-canvas==0.9.3
-fastapi
-uvicorn
-python-multipart
-Pillow
-tensorflow
-numpy
-pandas
