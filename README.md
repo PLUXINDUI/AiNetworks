@@ -1,10 +1,10 @@
-# Классификация изображений: Cats / Dogs / Snakes
+# Классификация изображений: Cat / Frog / Deer
 
 ## Описание проекта
 
 Проект по сравнению моделей классификации изображений и развертыванию лучшей модели в виде API с пользовательским интерфейсом.
 
-**Датасет:** [Cat Dog Snake Dataset](https://www.kaggle.com/datasets/alvarogarciav/dataset-classifier-cat-dog-snake) — 3000 изображений (по 1000 на класс: кошки, собаки, змеи).
+**Датасет:** [Cifar10](https://www.kaggle.com/datasets/ayush1220/cifar10) — были выбраны три класса: cat, deer, frog (3000 изобаржений, по 1000 в каждом)
 
 ## Сравниваемые модели
 
@@ -33,7 +33,7 @@
 ```
 ├── main.py                          # FastAPI бэкенд
 ├── app.py                           # Streamlit фронтенд
-├── best_classification_model.keras  # Лучшая модель
+├── classification.keras  # Лучшая модель
 ├── requirements.txt                 # Зависимости фронтенда
 ├── requirements_backend.txt         # Зависимости бэкенда
 └── README.md                        # Документация
@@ -41,9 +41,8 @@
 
 ## Ссылки
 
-- **Публичный API:** https://classification-api-ipqh.onrender.com/predict
-- **Streamlit-интерфейс:** https://classification-api-mwbrcnpq9nyoe92cmfppww.streamlit.app/
-- **Документация API (Swagger):** https://classification-api-ipqh.onrender.com/docs
+- **Публичный API:** https://networksai.onrender.com/predict
+- **Streamlit-интерфейс:** https://classification-animals.streamlit.app
 
 ## Локальное развертывание
 
@@ -70,7 +69,7 @@ streamlit run app.py
 ```python
 import requests
 
-url = "https://classification-api-ipqh.onrender.com/predict"
+url = "https://networksai.onrender.com/predict"
 files = {"file": open("cat.jpg", "rb")}
 response = requests.post(url, files=files)
 print(response.json())
@@ -79,7 +78,7 @@ print(response.json())
 ### cURL
 
 ```bash
-curl -X POST "https://classification-api-ipqh.onrender.com/predict" \
+curl -X POST "https://networksai.onrender.com/predict" \
      -F "file=@cat.jpg"
 ```
 
